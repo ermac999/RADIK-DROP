@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RADIK DROP</title>
+<meta name="description" content="Симулятор открытия кейсов CS2. Виртуальные токены, без реальных денег и призов.">
+<meta name="theme-color" content="#0c0f15">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 28 9v14l-12 7-12-7V9z' fill='%2312151d' stroke='%23e8ebf1' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M10 12l6 7 6-7' fill='none' stroke='%23f08236' stroke-width='3.2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="wrap topbar__in">
+      <a class="logo" href="#cases" aria-label="RADIK DROP — на главную">
+        <svg class="logo__mark" viewBox="0 0 32 32" aria-hidden="true"><path class="hex" d="M16 2 28 9v14l-12 7-12-7V9z"/><path class="chev" d="M10 12l6 7 6-7"/></svg>
+        <span>Radik <b>Drop</b></span>
+      </a>
+      <nav class="nav-inline" aria-label="Разделы">
+        <a href="#cases" data-nav="cases">Кейсы</a>
+        <a href="#upgrade" data-nav="upgrade">Апгрейд</a>
+        <a href="#contracts" data-nav="contracts">Контракты</a>
+        <a href="#battle" data-nav="battle">Батл</a>
+        <a href="#inventory" data-nav="inventory">Инвентарь</a>
+        <a href="#promo" data-nav="promo">Промокоды</a>
+      </nav>
+      <div class="topbar__right">
+        <span class="boost-chip" id="boost-chip" hidden>Буст<span class="boost-chip__time" id="boost-time"></span></span>
+        <button class="tokens-btn" id="tokens-btn" type="button" aria-label="Токены">
+          <svg class="coin" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><path d="M10 4.8 14.5 7.4v5.2L10 15.2 5.5 12.6V7.4z"/></svg>
+          <span id="tokens-val">0</span>
+          <span class="tokens-btn__bar" aria-hidden="true"><i id="tokens-bar"></i></span>
+        </button>
+        <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Меню" aria-expanded="false" aria-controls="drawer">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="live" aria-label="Ваши последние дропы">
+    <div class="wrap live__in">
+      <span class="live__label" aria-hidden="true">Дропы</span>
+      <div class="live__list" id="live-list"></div>
+    </div>
+  </div>
+
+  <div class="notice" id="storage-notice" hidden>
+    <div class="wrap"><p>Браузер не даёт сохранять данные. Сайт работает, но прогресс пропадёт после закрытия вкладки.</p></div>
+  </div>
+
+  <main class="wrap view" id="view" tabindex="-1">
+    <noscript><p class="empty">Для работы сайта нужен включённый JavaScript.</p></noscript>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__in">
+      <p class="footer__disclaimer">Виртуальный симулятор. Нет реальных денег и призов.</p>
+      <p>Изображения предметов принадлежат Valve. Сайт не связан с Valve и Steam.</p>
+    </div>
+  </footer>
+</div>
+
+<div class="drawer-wrap" id="drawer-wrap" hidden>
+  <div class="drawer__scrim" data-close-drawer></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Меню">
+    <div class="drawer__head">
+      <span class="logo"><svg class="logo__mark" viewBox="0 0 32 32" aria-hidden="true"><path class="hex" d="M16 2 28 9v14l-12 7-12-7V9z"/><path class="chev" d="M10 12l6 7 6-7"/></svg><span>Radik <b>Drop</b></span></span>
+      <button class="icon-btn" type="button" data-close-drawer aria-label="Закрыть меню">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <nav class="drawer__nav" id="drawer-nav" aria-label="Разделы"></nav>
+    <div class="panel drawer__tokens" id="drawer-tokens"></div>
+  </aside>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal__box" role="dialog" aria-modal="true" aria-label="Окно">
+    <button class="icon-btn modal__close" type="button" data-close aria-label="Закрыть">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="modal__body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
