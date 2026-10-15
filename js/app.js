@@ -313,7 +313,6 @@
     if (state.boost && state.boost.until <= now) {
       state.boost = null;
       save();
-      toast('Буст закончился');
       refreshView();
     }
     renderHeader();
@@ -332,13 +331,6 @@
     const btn = $('#tokens-btn');
     btn.classList.toggle('is-full', full);
     btn.setAttribute('aria-label', `Токены: ${state.balance}. Подробнее`);
-    const chip = $('#boost-chip');
-    const boosted = boostActive();
-    chip.hidden = !boosted;
-    if (boosted) {
-      $('#boost-time').textContent = ` до ${timeHM(state.boost.until)}`;
-      chip.title = `Буст активен до ${timeHM(state.boost.until)}`;
-    }
     if (!$('#drawer-wrap').hidden) renderDrawerTokens();
     const meter = $('#token-meter');
     if (meter) updateTokenModal();
@@ -760,7 +752,7 @@
       </div>
       <div class="case-info">
         <section class="panel" aria-labelledby="odds-h">
-          <h2 class="h2" id="odds-h">Шансы <span id="odds-boost"></span></h2>
+          <h2 class="h2" id="odds-h">Шансы</h2>
           <ul class="odds__list" id="odds-list"></ul>
         </section>
         <section aria-labelledby="contents-h">
@@ -791,7 +783,6 @@
     const tiers = tiersOf(c);
     $('#odds-list').innerHTML = rows.map((r) => `
       <li class="r-${r.rarity}"><span class="dot"></span><span class="odds__name">${esc(RAR[r.rarity].name)}</span><span class="odds__count">${tiers[r.rarity].length} шт.</span><span class="odds__pct">${pct(r.pct)}</span></li>`).join('');
-    $('#odds-boost').innerHTML = boostActive() ? `<span class="boost-chip">Буст до ${timeHM(state.boost.until)}</span>` : '';
   }
   function openCase(c) {
     if (!canAct() || state.balance < c.price) return;
@@ -1412,7 +1403,7 @@
       label: 'Начать батл',
       blocked: cases.length ? `Нужно ещё ${fmt(lack)} ${COIN}` : 'Добавьте кейсы',
     });
-    $('#bat-hint').textContent = boostActive() ? 'Буст действует на ваши открытия, бот открывает с обычными шансами.' : '';
+    $('#bat-hint').textContent = '';
   }
 
   function startBattle() {
@@ -1663,22 +1654,11 @@
           <button class="btn" type="submit">Активировать</button>
         </div>
         <p class="msg" id="promo-msg" role="status" aria-live="polite"></p>
-        <div class="panel boost-box" id="boost-box" hidden></div>
       </form>`;
     $('#promo-form').addEventListener('submit', (e) => {
       e.preventDefault();
       redeemCode($('#promo-input').value);
     });
-    view.refresh = renderPromo;
-    renderPromo();
-  }
-  function renderPromo() {
-    const box = $('#boost-box');
-    if (!box) return;
-    box.hidden = !boostActive();
-    if (boostActive()) {
-      box.innerHTML = `<p><b>Буст активен до ${timeHM(state.boost.until)}.</b> Повышенные шансы видны на странице каждого кейса.</p>`;
-    }
   }
   function redeemCode(raw) {
     const msg = $('#promo-msg');
@@ -1710,7 +1690,7 @@
     } else if (entry.type === 'boost') {
       const minutes = Math.max(1, Number(entry.minutes) || 30);
       state.boost = { until: Date.now() + minutes * 60000, odds: entry.odds || CONFIG.odds };
-      say(`Буст включён до ${timeHM(state.boost.until)}.`, 'ok');
+      say('Промокод активирован.', 'ok');
     } else {
       say('Этот промокод настроен с ошибкой: неизвестный type.', 'bad');
       return;
@@ -1719,7 +1699,6 @@
     save();
     $('#promo-input').value = '';
     renderHeader();
-    renderPromo();
   }
 
   /* ── 8. Навигация и запуск ──────────────────────────────────────── */

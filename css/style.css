@@ -133,13 +133,6 @@ button, input, select { font: inherit; color: inherit; }
 .coin circle { fill: var(--accent); }
 .coin path { fill: none; stroke: var(--accent-ink); stroke-width: 1.7; stroke-linejoin: round; }
 
-.boost-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-family: var(--font-display); font-weight: 600; font-size: .78rem;
-  letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
-  color: var(--accent-ink); background: var(--r-gold); padding: 3px 7px; border-radius: 2px;
-}
-.boost-chip__time { display: none; }
 
 .icon-btn {
   width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 auto;
@@ -150,9 +143,6 @@ button, input, select { font: inherit; color: inherit; }
 
 @media (max-width: 359px) {
   .logo__mark { display: none; }
-}
-@media (min-width: 560px) {
-  .boost-chip__time { display: inline; }
 }
 @media (min-width: 1024px) {
   .nav-inline { display: flex; gap: 2px; margin-left: 18px; }
@@ -677,8 +667,6 @@ button.item:hover { background-color: var(--panel-2); }
 .msg { margin: 0; min-height: 1.5em; font-weight: 500; }
 .msg.is-ok { color: var(--ok); }
 .msg.is-bad { color: var(--bad); }
-.boost-box { border-left: 3px solid var(--r-gold); }
-.boost-box p { margin: 0; }
 
 /* ── Подвал ───────────────────────────────────────────────────────── */
 .footer { border-top: 1px solid var(--line); background: var(--bg-deep); }
