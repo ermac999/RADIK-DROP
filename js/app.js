@@ -606,6 +606,24 @@
       </div>`, { label: `${title}: ${s.name}` });
   }
 
+  /* Окно с несколькими предметами (открытие нескольких кейсов за раз) */
+  function showDrops(items, { title = 'Ваш дроп' } = {}) {
+    const list = items.filter((it) => skinById.has(it.s));
+    const total = sum(list, itemValue);
+    const forUpgrade = list.slice(0, CONFIG.upgrade.maxItems).map((it) => it.u).join(',');
+    openModal(`
+      <div class="drop-view">
+        <p class="drop-view__title">${esc(title)} · ${list.length} ${itemsWord(list.length)}</p>
+        <div class="mini-list">${list.map((it) => itemCard(it)).join('')}</div>
+        <p class="drop-view__meta" style="margin-top:14px">Общая ценность ◆ ${fmt(total)}</p>
+        <p class="hint" style="margin-inline:auto">Все предметы добавлены в инвентарь.</p>
+        <div class="drop-view__actions">
+          <button class="btn" type="button" data-close data-autofocus>Готово</button>
+          <button class="btn btn--ghost" type="button" data-to-upgrade="${forUpgrade}">В апгрейд</button>
+        </div>
+      </div>`, { wide: list.length > 3, label: `${title}: ${list.length} ${itemsWord(list.length)}` });
+  }
+
   /* Пауза между открытиями и «занятость» во время анимаций */
   let busy = false;
   let pauseUntil = 0;
@@ -745,8 +763,11 @@
           <p>${list.length} ${itemsWord(list.length)} · цена ${fmt(c.price)} ${tokensWord(c.price)}</p>
         </div>
       </div>
-      <div class="reel" id="reel" aria-hidden="true"><div class="reel__track"></div><span class="reel__marker"></span></div>
+      <div class="reels" id="reels"></div>
       <div class="open-row">
+        ${maxOpen() > 1 ? `<div class="chips open-count" id="open-count" role="group" aria-label="Сколько кейсов открыть за раз">
+          ${Array.from({ length: maxOpen() }, (_, i) => `<button class="chip" type="button" data-count="${i + 1}" aria-pressed="false">×${i + 1}</button>`).join('')}
+        </div>` : ''}
         <button class="btn btn--big" id="open-btn" type="button"></button>
         <p class="hint" id="open-hint"></p>
       </div>
@@ -761,19 +782,48 @@
           ${gold.length ? `<h3 class="h3 gold-title">★ Редкие особые предметы</h3><div class="item-grid">${gold.map((s) => skinCard(s)).join('')}</div>` : ''}
         </section>
       </div>`;
-    prepareReel($('#reel'), c);
+    openCount = Math.min(openCount, maxOpen());
+    renderReels(c);
+    const countEl = $('#open-count');
+    if (countEl) {
+      countEl.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-count]');
+        if (!b || busy) return;
+        openCount = Number(b.dataset.count);
+        renderReels(c);
+        renderCaseControls(c);
+      });
+    }
     $('#open-btn').addEventListener('click', () => openCase(c));
     view.refresh = () => renderCaseControls(c);
     renderCaseControls(c);
   }
+
+  // Сколько кейсов открыть за раз (кнопки ×1…×N). Запоминается до перезагрузки страницы.
+  let openCount = 1;
+  const maxOpen = () => clamp(Math.floor(Number(CONFIG.ui.maxOpen) || 1), 1, 10);
+  function renderReels(c) {
+    const box = $('#reels');
+    if (!box) return;
+    const n = openCount;
+    box.classList.toggle('is-multi', n > 1);
+    box.innerHTML = Array.from({ length: n }, () => `<div class="reel${n > 1 ? ' reel--multi' : ''}" aria-hidden="true"><div class="reel__track"></div><span class="reel__marker"></span></div>`).join('');
+    $$('.reel', box).forEach((r) => prepareReel(r, c));
+  }
   function renderCaseControls(c) {
     const btn = $('#open-btn');
     if (!btn) return;
-    const lack = c.price - state.balance;
+    const n = openCount;
+    const cost = c.price * n;
+    const lack = cost - state.balance;
     setActionButton(btn, {
       ready: lack <= 0,
-      label: `Открыть за ${fmt(c.price)} ${COIN}`,
+      label: n > 1 ? `Открыть ${n} за ${fmt(cost)} ${COIN}` : `Открыть за ${fmt(cost)} ${COIN}`,
       blocked: `Нужно ещё ${fmt(lack)} ${COIN}`,
+    });
+    $$('#open-count [data-count]').forEach((b) => {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.count) === n));
+      b.disabled = busy;
     });
     const hint = $('#open-hint');
     hint.textContent = lack > 0 && !busy
@@ -785,25 +835,41 @@
       <li class="r-${r.rarity}"><span class="dot"></span><span class="odds__name">${esc(RAR[r.rarity].name)}</span><span class="odds__count">${tiers[r.rarity].length} шт.</span><span class="odds__pct">${pct(r.pct)}</span></li>`).join('');
   }
   function openCase(c) {
-    if (!canAct() || state.balance < c.price) return;
-    const item = rollItem(c, 'case');
-    state.balance -= c.price;
-    state.stats.tokensSpent += c.price;
-    state.stats.cases += 1;
-    state.opens += 1;
-    addItems([item], 'case', { hidden: true });
+    const n = openCount;
+    const cost = c.price * n;
+    if (!canAct() || state.balance < cost) return;
+    // Каждый кейс разыгрывается отдельно; счётчик открытий растёт после каждого.
+    const items = [];
+    for (let i = 0; i < n; i++) {
+      items.push(rollItem(c, 'case'));
+      state.opens += 1;
+    }
+    state.balance -= cost;
+    state.stats.tokensSpent += cost;
+    state.stats.cases += n;
+    addItems(items, 'case', { hidden: true });
     save();
     busy = true;
     renderHeader();
     renderCaseControls(c);
+    if ($$('#reels .reel').length !== n) renderReels(c);
+    const reels = $$('#reels .reel');
+    // Если ленты не помещаются в видимую часть экрана, прокручиваем к ним.
+    const box = $('#reels');
+    const rect = box.getBoundingClientRect();
+    const headerBottom = $('.topbar').getBoundingClientRect().bottom;
+    if (rect.top < headerBottom || rect.bottom > window.innerHeight) {
+      box.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    }
     const gen = view.gen;
-    spinReel($('#reel'), c, item, CONFIG.ui.spinMs).then(async () => {
+    Promise.all(items.map((it, i) => spinReel(reels[i], c, it, CONFIG.ui.spinMs))).then(async () => {
       if (gen !== view.gen) return;
       await sleep(reducedMotion() ? 0 : 350);
       if (gen !== view.gen) return;
       busy = false;
-      reveal([item.u]);
-      showDrop(item);
+      reveal(items.map((it) => it.u));
+      if (n === 1) showDrop(items[0]);
+      else showDrops(items);
       startPause();
     });
   }
@@ -1788,8 +1854,8 @@
     }
     const up = t.closest('[data-to-upgrade]');
     if (up) {
-      const u = Number(up.dataset.toUpgrade);
-      if (findItem(u)) upg.input = [u];
+      const uids = String(up.dataset.toUpgrade).split(',').map(Number).filter((u) => findItem(u));
+      if (uids.length) upg.input = uids.slice(0, CONFIG.upgrade.maxItems);
       go('#upgrade');
       return;
     }
