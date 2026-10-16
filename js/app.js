@@ -76,6 +76,8 @@
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
   }
   const normCode = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '');
+  // Путь к картинке. В предпросмотре картинки подгружаются архивом, и путь подменяется.
+  const imgUrl = (path) => (window.RADIK_IMAGES && window.RADIK_IMAGES.get(path)) || path;
 
   /* ── Иконки ─────────────────────────────────────────────────────── */
   const svgIco = (d) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -132,9 +134,12 @@
       continue;
     }
     skinById.set(s.id, s);
-    if (skinsByCase.has(s.case)) skinsByCase.get(s.case).push(s);
-    else console.warn('[RADIK DROP] Скин ссылается на несуществующий кейс:', s.id, s.case);
+    for (const cid of Array.isArray(s.case) ? s.case : [s.case]) {
+      if (skinsByCase.has(cid)) skinsByCase.get(cid).push(s);
+      else console.warn('[RADIK DROP] Скин ссылается на несуществующий кейс:', s.id, cid);
+    }
   }
+  const casesOf = (s) => (Array.isArray(s.case) ? s.case : [s.case]).map((id) => caseById.get(id)).filter(Boolean);
   const playableCases = CONFIG.cases.filter((c) => skinsByCase.get(c.id).length > 0);
 
   const tiersCache = new Map();
@@ -167,17 +172,52 @@
     }
     return multCache.get(c.id);
   }
+  // Ценность по редкости — только для скинов без рыночной цены (поля price).
+  function legacyValue(skin) {
+    const c = casesOf(skin)[0];
+    return Math.max(1, Math.round(RAR[skin.rarity].value * (c ? valueMult(c) : 1)));
+  }
+  // Рыночная цена в токенах для износа wi (0 = FN … 4 = BS). Если для этого износа цены нет,
+  // берётся ближайший износ с ценой.
+  function priceAt(skin, wi) {
+    const p = skin.price;
+    if (typeof p === 'number') return p > 0 ? p : null;
+    if (!Array.isArray(p)) return null;
+    for (let d = 0; d < 5; d++) {
+      for (const j of d ? [wi - d, wi + d] : [wi]) if (p[j] > 0) return p[j];
+    }
+    return null;
+  }
+  // Износ «по умолчанию»: Field-Tested, если он у скина бывает, иначе самый частый.
+  // Ценность в каталогах и цель апгрейда считаются для этого износа.
+  const defWearCache = new Map();
+  function defaultWear(skin) {
+    if (defWearCache.has(skin.id)) return defWearCache.get(skin.id);
+    const [lo, hi] = Array.isArray(skin.float) ? skin.float : [0, 1];
+    let best = 2;
+    let cov = 0;
+    let from = 0;
+    WEARS.forEach(([to], i) => {
+      const ov = Math.min(hi, Math.min(to, 1)) - Math.max(lo, from);
+      if (ov > cov) { cov = ov; best = i; }
+      from = to;
+    });
+    if (cov <= 0) best = wearIndex(lo);
+    if (Math.min(hi, WEARS[2][0]) - Math.max(lo, WEARS[1][0]) > 0) best = 2;
+    defWearCache.set(skin.id, best);
+    return best;
+  }
   function skinValue(skin) {
     if (typeof skin.value === 'number') return skin.value;
-    const c = caseById.get(skin.case);
-    return Math.max(1, Math.round(RAR[skin.rarity].value * (c ? valueMult(c) : 1)));
+    return priceAt(skin, defaultWear(skin)) ?? legacyValue(skin);
   }
   // Цена продажи предмета в токенах.
   const sellPrice = (it) => Math.max(1, Math.floor(itemValue(it) * (Number(CONFIG.economy.sellRate) || 1)));
   function itemValue(it) {
     const s = it && skinById.get(it.s);
     if (!s) return 0;
-    return Math.round(skinValue(s) * (it.st ? CONFIG.economy.statTrakValue : 1));
+    const base = typeof s.value === 'number' ? s.value : (priceAt(s, wearIndex(it.f)) ?? legacyValue(s));
+    return Math.max(1, Math.round(base * (it.st ? CONFIG.economy.statTrakValue : 1)));
   }
 
   function splitName(name) {
@@ -195,6 +235,10 @@
   function wearOf(f) {
     const w = WEARS.find((x) => f < x[0]) || WEARS[WEARS.length - 1];
     return { name: w[1], short: w[2] };
+  }
+  function wearIndex(f) {
+    const i = WEARS.findIndex((x) => f < x[0]);
+    return i < 0 ? WEARS.length - 1 : i;
   }
 
   /* ── 3. Сохранение прогресса ────────────────────────────────────── */
@@ -431,6 +475,14 @@
     const st = skin.st !== false && rand() < CONFIG.economy.statTrakChance;
     return { s: skin.id, f, st };
   }
+  function makeItemInWear(skin, wi) {
+    const it = makeItem(skin);
+    const [lo, hi] = Array.isArray(skin.float) ? skin.float : [0, 1];
+    const a = Math.max(lo, wi > 0 ? WEARS[wi - 1][0] : 0);
+    const b = Math.min(hi, Math.min(WEARS[wi][0], 1));
+    if (b > a) it.f = clamp(Math.floor((a + rand() * (b - a)) * 10000) / 10000, Math.ceil(a * 10000) / 10000, b);
+    return it;
+  }
   function rollItem(c, ctx) {
     const rarity = pickRarity(oddsRows(c, oddsFor(c, ctx)));
     const pool = tiersOf(c)[rarity];
@@ -489,7 +541,7 @@
     el.innerHTML = list.map((d) => {
       const s = skinById.get(d.s);
       const isNew = fresh.includes(d.u) && !reducedMotion();
-      return `<span class="drop r-${s.rarity}${isNew ? ' is-new' : ''}" title="${esc((d.st ? 'StatTrak™ ' : '') + s.name)}"><img src="${esc(s.image)}" alt="${esc(s.name)}" decoding="async"></span>`;
+      return `<span class="drop r-${s.rarity}${isNew ? ' is-new' : ''}" title="${esc((d.st ? 'StatTrak™ ' : '') + s.name)}"><img src="${esc(imgUrl(s.image))}" alt="${esc(s.name)}" decoding="async"></span>`;
     }).join('');
   }
 
@@ -503,7 +555,7 @@
     return `<${tag} class="item r-${s.rarity}"${button ? ' type="button"' : ''} ${attrs}>
       ${it.st ? '<span class="tag-st">StatTrak™</span>' : ''}
       ${check ? '<span class="item__check" aria-hidden="true"></span>' : ''}
-      <img class="item__img" src="${esc(s.image)}" alt="" loading="lazy" decoding="async">
+      <img class="item__img" src="${esc(imgUrl(s.image))}" alt="" loading="lazy" decoding="async">
       <span class="item__weapon">${esc(weapon)}</span>
       <span class="item__name">${esc(finish || weapon)}</span>
       <span class="item__meta"><span>${wear ? `${w.short} · ${it.f.toFixed(3)}` : ''}</span><span class="val">◆ ${fmt(itemValue(it))}</span></span>
@@ -515,10 +567,10 @@
     const { weapon, finish } = splitName(s.name);
     const tag = button ? 'button' : 'div';
     return `<${tag} class="item r-${s.rarity}"${button ? ' type="button"' : ''} ${attrs}>
-      <img class="item__img" src="${esc(s.image)}" alt="" loading="lazy" decoding="async">
+      <img class="item__img" src="${esc(imgUrl(s.image))}" alt="" loading="lazy" decoding="async">
       <span class="item__weapon">${esc(weapon)}</span>
       <span class="item__name">${esc(finish || weapon)}</span>
-      <span class="item__meta"><span>${esc(RAR[s.rarity].name)}</span><span class="val">◆ ${fmt(skinValue(s))}</span></span>
+      <span class="item__meta"><span>${esc(RAR[s.rarity].name)} · ${WEARS[defaultWear(s)][2]}</span><span class="val">◆ ${fmt(skinValue(s))}</span></span>
       ${extra}
     </${tag}>`;
   }
@@ -554,10 +606,11 @@
   function caseArt(c) {
     const color = /^#[0-9a-f]{3,8}$/i.test(c.color || '') ? c.color : '#f08236';
     if (c.image) {
-      return `<span class="case-art case-art--image" style="--case-color:${color}"><img class="case-art__custom" src="${esc(c.image)}" alt="" loading="lazy" decoding="async"></span>`;
+      const kind = c.imageStyle === 'plain' ? 'case-art--plain' : 'case-art--image';
+      return `<span class="case-art ${kind}" style="--case-color:${color}"><img class="case-art__custom" src="${esc(imgUrl(c.image))}" alt="" loading="lazy" decoding="async"></span>`;
     }
     const cover = caseCover(c);
-    return `<span class="case-art">${crateSvg(color)}${cover ? `<img class="crate-skin" src="${esc(cover.image)}" alt="" loading="lazy" decoding="async">` : ''}</span>`;
+    return `<span class="case-art">${crateSvg(color)}${cover ? `<img class="crate-skin" src="${esc(imgUrl(cover.image))}" alt="" loading="lazy" decoding="async">` : ''}</span>`;
   }
 
   /* Модальное окно */
@@ -612,7 +665,7 @@
     openModal(`
       <div class="drop-view r-${s.rarity}">
         <p class="drop-view__title">${esc(title)}</p>
-        <div class="drop-view__stage"><img src="${esc(s.image)}" alt="${esc(s.name)}"></div>
+        <div class="drop-view__stage"><img src="${esc(imgUrl(s.image))}" alt="${esc(s.name)}"></div>
         <p class="drop-view__rarity">${esc(RAR[s.rarity].name)}${it.st ? ' · StatTrak™' : ''}</p>
         <h2 class="drop-view__name"><span>${esc(weapon)}</span>${esc(finish || weapon)}</h2>
         <p class="drop-view__meta">${w.name} · float ${it.f.toFixed(4)} · ценность ◆ ${fmt(itemValue(it))}</p>
@@ -682,7 +735,7 @@
   function reelTiles(items) {
     return items.map((it) => {
       const s = skinById.get(it.s);
-      return `<div class="tile r-${s.rarity}"><img src="${esc(s.image)}" alt="" decoding="async"></div>`;
+      return `<div class="tile r-${s.rarity}"><img src="${esc(imgUrl(s.image))}" alt="" decoding="async"></div>`;
     }).join('');
   }
   function prepareReel(reel, c) {
@@ -981,7 +1034,7 @@
       slotIn.classList.add('is-filled');
       slotIn.style.setProperty('--rc', `var(--r-${s.rarity})`);
       slotIn.innerHTML = `
-        <img class="slot__img" src="${esc(s.image)}" alt="">
+        <img class="slot__img" src="${esc(imgUrl(s.image))}" alt="">
         <span class="slot__sub">${items[0].st ? 'StatTrak™ ' : ''}${esc(weapon)}</span>
         <span class="slot__label">${esc(finish || weapon)}</span>
         <span class="slot__value">◆ ${fmt(inVal)}</span>`;
@@ -990,7 +1043,7 @@
       slotIn.classList.add('is-filled');
       slotIn.style.removeProperty('--rc');
       slotIn.innerHTML = `
-        <span class="slot__thumbs">${shown.map((it) => { const s = skinById.get(it.s); return `<img class="r-${s.rarity}" src="${esc(s.image)}" alt="${esc(s.name)}">`; }).join('')}${items.length > 4 ? `<span class="slot__more">+${items.length - 3}</span>` : ''}</span>
+        <span class="slot__thumbs">${shown.map((it) => { const s = skinById.get(it.s); return `<img class="r-${s.rarity}" src="${esc(imgUrl(s.image))}" alt="${esc(s.name)}">`; }).join('')}${items.length > 4 ? `<span class="slot__more">+${items.length - 3}</span>` : ''}</span>
         <span class="slot__sub">${items.length} ${itemsWord(items.length)}</span>
         <span class="slot__value">◆ ${fmt(inVal)}</span>`;
     } else {
@@ -1005,8 +1058,8 @@
       slotT.classList.add('is-filled');
       slotT.style.setProperty('--rc', `var(--r-${t.rarity})`);
       slotT.innerHTML = `
-        <img class="slot__img" src="${esc(t.image)}" alt="">
-        <span class="slot__sub">${esc(weapon)}</span>
+        <img class="slot__img" src="${esc(imgUrl(t.image))}" alt="">
+        <span class="slot__sub">${esc(weapon)} · ${WEARS[defaultWear(t)][1]}</span>
         <span class="slot__label">${esc(finish || weapon)}</span>
         <span class="slot__value">◆ ${fmt(tVal)}</span>`;
     } else {
@@ -1091,12 +1144,13 @@
     const render = () => {
       const q = query.trim().toLowerCase();
       const list = all.filter((s) => (filter === 'all' || s.rarity === filter) && (!q || s.name.toLowerCase().includes(q)));
+      const LIMIT = 150;
       grid.innerHTML = list.length
-        ? list.map((s) => {
+        ? list.slice(0, LIMIT).map((s) => {
           const ch = inVal > 0 ? Math.min(CONFIG.upgrade.maxChance, (inVal / skinValue(s)) * 100) : null;
           const extra = ch === null ? '' : `<span class="item__pct">${ch < CONFIG.upgrade.minChance ? `< ${CONFIG.upgrade.minChance}%` : pct(ch)}</span>`;
           return skinCard(s, { button: true, attrs: `data-id="${esc(s.id)}"${upg.target === s.id ? ' aria-pressed="true"' : ''}`, extra });
-        }).join('')
+        }).join('') + (list.length > LIMIT ? `<p class="hint" style="grid-column:1/-1">Показаны ${LIMIT} из ${fmt(list.length)}. Уточните поиск, чтобы найти нужный скин.</p>` : '')
         : '<p class="empty" style="grid-column:1/-1">Ничего не найдено.</p>';
     };
     $('#tgt-search').addEventListener('input', (e) => { query = e.target.value; render(); });
@@ -1168,7 +1222,7 @@
     state.stats.upgrades += 1;
     let prize = null;
     if (win) {
-      prize = makeItem(calc.t);
+      prize = makeItemInWear(calc.t, defaultWear(calc.t));
       prize.st = false;
       addItems([prize], 'upgrade', { hidden: true });
       state.stats.upgradesWon += 1;
@@ -1219,7 +1273,7 @@
     const odds = new Map();
     for (const it of items) {
       const s = skinById.get(it.s);
-      let pool = tiersOf(caseById.get(s.case))[next] || [];
+      let pool = [...new Set(casesOf(s).flatMap((c) => tiersOf(c)[next] || []))];
       if (!pool.length) pool = [...skinById.values()].filter((x) => x.rarity === next);
       for (const p of pool) odds.set(p.id, (odds.get(p.id) || 0) + 1 / items.length / pool.length);
     }
@@ -1330,7 +1384,7 @@
       const it = selItems[i];
       if (!it) return `<span class="cslot">${i + 1}</span>`;
       const s = skinById.get(it.s);
-      return `<button class="cslot is-filled r-${s.rarity}" type="button" data-u="${it.u}" title="Убрать: ${esc(s.name)}" aria-label="Убрать ${esc(s.name)}"><img src="${esc(s.image)}" alt=""></button>`;
+      return `<button class="cslot is-filled r-${s.rarity}" type="button" data-u="${it.u}" title="Убрать: ${esc(s.name)}" aria-label="Убрать ${esc(s.name)}"><img src="${esc(imgUrl(s.image))}" alt=""></button>`;
     }).join('');
 
     $('#con-status').innerHTML = r
@@ -1654,7 +1708,7 @@
     const best = st.best && skinById.get(st.best.s);
     const totalValue = sum(items, itemValue);
     const bestHtml = best
-      ? `<div class="best r-${best.rarity}"><img src="${esc(best.image)}" alt=""><div><div class="stat__label">Самый редкий дроп</div><div class="best__rar">${esc(RAR[best.rarity].name)}${st.best.st ? ' · StatTrak™' : ''}</div><div class="best__name">${esc(best.name)}</div></div></div>`
+      ? `<div class="best r-${best.rarity}"><img src="${esc(imgUrl(best.image))}" alt=""><div><div class="stat__label">Самый редкий дроп</div><div class="best__rar">${esc(RAR[best.rarity].name)}${st.best.st ? ' · StatTrak™' : ''}</div><div class="best__name">${esc(best.name)}</div></div></div>`
       : '<div class="best"><div class="empty" style="grid-column:1/-1;padding:18px">Самый редкий дроп появится после первого открытия.</div></div>';
     $('#stats').innerHTML = `
       ${bestHtml}
@@ -1701,7 +1755,7 @@
     const when = new Date(it.t).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     openModal(`
       <div class="drop-view r-${s.rarity}">
-        <div class="drop-view__stage"><img src="${esc(s.image)}" alt="${esc(s.name)}"></div>
+        <div class="drop-view__stage"><img src="${esc(imgUrl(s.image))}" alt="${esc(s.name)}"></div>
         <p class="drop-view__rarity">${esc(RAR[s.rarity].name)}${it.st ? ' · StatTrak™' : ''}</p>
         <h2 class="drop-view__name"><span>${esc(weapon)}</span>${esc(finish || weapon)}</h2>
         <p class="drop-view__meta">${w.name} · float ${it.f.toFixed(4)} · ценность ◆ ${fmt(itemValue(it))}</p>
