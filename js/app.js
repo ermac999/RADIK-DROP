@@ -76,8 +76,14 @@
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
   }
   const normCode = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '');
-  // Путь к картинке. В предпросмотре картинки подгружаются архивом, и путь подменяется.
-  const imgUrl = (path) => (window.RADIK_IMAGES && window.RADIK_IMAGES.get(path)) || path;
+  // Путь к картинке. В предпросмотре на claude.ai картинки приходят архивом: пока архив
+  // не распакован, показывается прозрачная заглушка, а путь хранится после «#».
+  const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  const imgUrl = (path) => {
+    const map = window.RADIK_IMAGES;
+    if (!map) return path;
+    return map.get(path) || `${PLACEHOLDER}#${path}`;
+  };
 
   /* ── Иконки ─────────────────────────────────────────────────────── */
   const svgIco = (d) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
