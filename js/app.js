@@ -475,10 +475,11 @@
     }
     return rows[rows.length - 1].rarity;
   }
-  function makeItem(skin) {
+  // forceSt — кейс, где все предметы StatTrak™ (statTrak: true в CONFIG.cases).
+  function makeItem(skin, forceSt = false) {
     const [lo, hi] = Array.isArray(skin.float) ? skin.float : [0, 1];
     const f = Number((lo + rand() * (hi - lo)).toFixed(4));
-    const st = skin.st !== false && rand() < CONFIG.economy.statTrakChance;
+    const st = skin.st !== false && (forceSt || rand() < CONFIG.economy.statTrakChance);
     return { s: skin.id, f, st };
   }
   function makeItemInWear(skin, wi) {
@@ -492,7 +493,7 @@
   function rollItem(c, ctx) {
     const rarity = pickRarity(oddsRows(c, oddsFor(c, ctx)));
     const pool = tiersOf(c)[rarity];
-    return makeItem(pool[randInt(pool.length)]);
+    return makeItem(pool[randInt(pool.length)], !!c.statTrak);
   }
 
   /* ── 6. Общие элементы интерфейса ───────────────────────────────── */
@@ -841,6 +842,7 @@
         <div class="case-hero__info">
           <h1 class="page-title">${esc(c.name)}</h1>
           <p>${list.length} ${itemsWord(list.length)} · цена ${fmt(c.price)} ${tokensWord(c.price)}</p>
+          ${c.statTrak ? '<p class="st-note">Все предметы выпадают StatTrak™, если он у скина бывает</p>' : ''}
         </div>
       </div>
       <div class="reels" id="reels"></div>

@@ -330,7 +330,7 @@ button, input, select { font: inherit; color: inherit; }
 @media (min-width: 640px) { .case-grid--featured .case-card { flex-basis: calc(33.333% - 8px); max-width: 340px; } }
 .case-grid--featured .price-tag { min-width: 128px; }
 /* одинаковая высота подписи, чтобы картинки стояли на одной линии даже при переносе названия */
-.case-grid--featured .case-card__head { min-height: calc(1.08rem * 1.2 * 2 + .82rem * 1.5); justify-content: flex-end; }
+.case-card__head { min-height: calc(1.08rem * 1.2 * 2 + .82rem * 1.5); justify-content: flex-end; }
 .bcase .case-art--image { aspect-ratio: 4 / 3; }
 .bcase .case-art--image .case-art__custom { object-fit: contain; border: 0; box-shadow: none; }
 .case-hero__art .case-art--image .case-art__custom { box-shadow: none; }
@@ -387,6 +387,7 @@ button.item:hover { background-color: var(--panel-2); }
 .case-hero__art { flex: 0 0 auto; width: 132px; }
 .case-hero__info { min-width: 0; }
 .case-hero__info p { margin: 0; color: var(--muted); }
+.case-hero__info .st-note { margin-top: 4px; color: var(--accent-hi); font-size: .85rem; }
 @media (min-width: 640px) { .case-hero__art { width: 180px; } }
 
 .reel {
