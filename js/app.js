@@ -148,13 +148,32 @@
     return tiersCache.get(c.id);
   }
 
-  // Ценность: значение редкости × (цена кейса / базовая цена). Можно задать вручную полем value.
+  // Ценность: значение редкости × множитель кейса. Множитель подобран так, чтобы средняя
+  // ценность дропа была пропорциональна цене кейса при любых шансах и наборе редкостей.
+  // Для обычного кейса он равен «цена / базовая цена». Можно задать вручную полем value.
+  const multCache = new Map();
+  let baseUnit = null;
+  const unitOf = (rows) => sum(rows, (r) => (r.pct / 100) * RAR[r.rarity].value);
+  function valueMult(c) {
+    if (!multCache.has(c.id)) {
+      if (baseUnit === null) {
+        const keys = Object.keys(CONFIG.odds).filter((r) => RAR[r] && Number(CONFIG.odds[r]) > 0);
+        const total = sum(keys, (r) => Number(CONFIG.odds[r]));
+        baseUnit = unitOf(keys.map((r) => ({ rarity: r, pct: (Number(CONFIG.odds[r]) / total) * 100 })));
+      }
+      const unit = unitOf(oddsRows(c, c.odds || CONFIG.odds));
+      const priceMult = c.price / CONFIG.economy.basePrice;
+      multCache.set(c.id, unit > 0 && baseUnit > 0 ? priceMult * (baseUnit / unit) : priceMult);
+    }
+    return multCache.get(c.id);
+  }
   function skinValue(skin) {
     if (typeof skin.value === 'number') return skin.value;
     const c = caseById.get(skin.case);
-    const mult = c ? c.price / CONFIG.economy.basePrice : 1;
-    return Math.max(1, Math.round(RAR[skin.rarity].value * mult));
+    return Math.max(1, Math.round(RAR[skin.rarity].value * (c ? valueMult(c) : 1)));
   }
+  // Цена продажи предмета в токенах.
+  const sellPrice = (it) => Math.max(1, Math.floor(itemValue(it) * (Number(CONFIG.economy.sellRate) || 1)));
   function itemValue(it) {
     const s = it && skinById.get(it.s);
     if (!s) return 0;
@@ -214,7 +233,7 @@
       usedCodes: [],          // хэши использованных одноразовых промокодов
       boost: null,            // { until, odds }
       stats: {
-        cases: 0, tokensEarned: start, tokensSpent: 0, best: null,
+        cases: 0, tokensEarned: start, tokensSpent: 0, best: null, sold: 0, soldFor: 0,
         upgrades: 0, upgradesWon: 0, contracts: 0, battles: 0, battlesWon: 0,
       },
     };
@@ -533,10 +552,10 @@
     return list.sort((a, b) => rankOf(b.rarity) - rankOf(a.rarity))[0] || null;
   }
   function caseArt(c) {
-    if (c.image) {
-      return `<span class="case-art"><img class="case-art__custom" src="${esc(c.image)}" alt="" loading="lazy" decoding="async"></span>`;
-    }
     const color = /^#[0-9a-f]{3,8}$/i.test(c.color || '') ? c.color : '#f08236';
+    if (c.image) {
+      return `<span class="case-art case-art--image" style="--case-color:${color}"><img class="case-art__custom" src="${esc(c.image)}" alt="" loading="lazy" decoding="async"></span>`;
+    }
     const cover = caseCover(c);
     return `<span class="case-art">${crateSvg(color)}${cover ? `<img class="crate-skin" src="${esc(cover.image)}" alt="" loading="lazy" decoding="async">` : ''}</span>`;
   }
@@ -602,6 +621,7 @@
         <div class="drop-view__actions">
           <button class="btn" type="button" data-close data-autofocus>Готово</button>
           <button class="btn btn--ghost" type="button" data-to-upgrade="${it.u}">В апгрейд</button>
+          <button class="btn btn--ghost" type="button" data-sell="${it.u}">Продать за ${fmt(sellPrice(it))} ${COIN}</button>
         </div>
       </div>`, { label: `${title}: ${s.name}` });
   }
@@ -620,6 +640,7 @@
         <div class="drop-view__actions">
           <button class="btn" type="button" data-close data-autofocus>Готово</button>
           <button class="btn btn--ghost" type="button" data-to-upgrade="${forUpgrade}">В апгрейд</button>
+          <button class="btn btn--ghost" type="button" data-sell="${list.map((it) => it.u).join(',')}">Продать всё за ${fmt(sum(list, sellPrice))} ${COIN}</button>
         </div>
       </div>`, { wide: list.length > 3, label: `${title}: ${list.length} ${itemsWord(list.length)}` });
   }
@@ -728,7 +749,7 @@
   }
   function viewCases(main) {
     const known = new Set(CONFIG.sections.map((s) => s.id));
-    const sections = CONFIG.sections.map((sec) => ({ title: sec.title, list: playableCases.filter((c) => c.section === sec.id) }));
+    const sections = CONFIG.sections.map((sec) => ({ title: sec.title, featured: !!sec.featured, list: playableCases.filter((c) => c.section === sec.id) }));
     const rest = playableCases.filter((c) => !known.has(c.section));
     if (rest.length) sections.push({ title: 'Другие кейсы', list: rest });
     const T = CONFIG.tokens;
@@ -738,7 +759,7 @@
       ${sections.filter((s) => s.list.length).map((s) => `
         <section class="shelf">
           <h2 class="section-title"><span>${esc(s.title)}</span></h2>
-          <div class="case-grid">${s.list.map(caseCard).join('')}</div>
+          <div class="case-grid${s.featured ? ' case-grid--featured' : ''}">${s.list.map(caseCard).join('')}</div>
         </section>`).join('')}
       ${playableCases.length ? '' : '<p class="empty">В CONFIG нет ни одного кейса со скинами.</p>'}`;
   }
@@ -933,7 +954,7 @@
             ${[1.5, 2, 3, 5, 10].map((k) => `<button class="chip" type="button" data-mult="${k}">×${String(k).replace('.', ',')}</button>`).join('')}
           </div>
           <button class="btn btn--big" id="upg-btn" type="button"></button>
-          <p class="hint">Шанс = ценность ваших предметов ÷ ценность цели, но не больше ${CONFIG.upgrade.maxChance}%. Если не повезёт, поставленные предметы пропадут. ◆ — ценность предмета, продать предмет нельзя.</p>
+          <p class="hint">Шанс = ценность ваших предметов ÷ ценность цели, но не больше ${CONFIG.upgrade.maxChance}%. Если не повезёт, поставленные предметы пропадут. ◆ — ценность предмета. В инвентаре предмет можно продать за токены.</p>
         </div>
       </div>`;
     $('#slot-in').addEventListener('click', pickUpgradeInput);
@@ -1461,7 +1482,7 @@
     const cost = sum(cases, (c) => c.price);
     roundsEl.innerHTML = cases.length
       ? cases.map((c, i) => `<li><span class="r-name">${esc(c.name)}</span><span class="r-price">${fmt(c.price)} ${COIN}</span><button class="icon-btn" type="button" data-rm="${i}" aria-label="Убрать раунд ${i + 1}">${ICON.close}</button></li>`).join('')
-      : '<li class="rounds-empty">Нажмите на кейс слева, чтобы добавить раунд.</li>';
+      : '<li class="rounds-empty">Нажмите на кейс, чтобы добавить раунд.</li>';
     $('#bat-total').innerHTML = `${fmt(cost)} ${COIN}`;
     const lack = cost - state.balance;
     setActionButton($('#bat-start'), {
@@ -1591,6 +1612,7 @@
           <select id="inv-sort">${Object.entries(SORTS).map(([k, v]) => `<option value="${k}"${inv.sort === k ? ' selected' : ''}>${v[0]}</option>`).join('')}</select>
         </label>
       </div>
+      <div class="inv-sell"><button class="btn btn--ghost" id="inv-sell" type="button" hidden></button></div>
       <div class="item-grid" id="inv-grid"></div>
       <div class="inv-more"><button class="btn btn--ghost" id="inv-more" type="button">Показать ещё</button></div>
       <section class="danger" aria-labelledby="reset-h">
@@ -1619,6 +1641,7 @@
       renderInventory();
     });
     $('#reset-btn').addEventListener('click', confirmReset);
+    $('#inv-sell').addEventListener('click', confirmSellShown);
     view.refresh = (reason) => { if (reason !== 'balance') renderInventory(); };
     renderInventory();
   }
@@ -1637,7 +1660,7 @@
       ${bestHtml}
       <div class="stats">
         <div class="stat"><div class="stat__label">Кейсов открыто</div><div class="stat__value">${fmt(st.cases)}</div></div>
-        <div class="stat"><div class="stat__label">Токенов получено</div><div class="stat__value">${fmt(st.tokensEarned)}</div></div>
+        <div class="stat"><div class="stat__label">Токенов получено</div><div class="stat__value">${fmt(st.tokensEarned)}${st.soldFor ? ` <small>+${fmt(st.soldFor)} с продаж</small>` : ''}</div></div>
         <div class="stat"><div class="stat__label">Предметов сейчас</div><div class="stat__value">${fmt(items.length)} <small>◆ ${fmt(totalValue)}</small></div></div>
         <div class="stat"><div class="stat__label">Апгрейды</div><div class="stat__value">${fmt(st.upgradesWon)} <small>из ${fmt(st.upgrades)}</small></div></div>
         <div class="stat"><div class="stat__label">Контракты</div><div class="stat__value">${fmt(st.contracts)}</div></div>
@@ -1659,6 +1682,12 @@
       ? list.slice(0, inv.limit).map((it) => itemCard(it, { button: true, attrs: `data-u="${it.u}" aria-label="${esc(skinById.get(it.s).name)}: подробнее"` })).join('')
       : `<div style="grid-column:1/-1">${emptyInventoryHtml('Инвентарь пуст. Откройте первый кейс, и предмет появится здесь.')}</div>`;
     $('#inv-more').hidden = list.length <= inv.limit;
+    const sellBtn = $('#inv-sell');
+    sellBtn.hidden = !list.length;
+    if (list.length) {
+      const what = inv.filter === 'all' ? 'всё' : `все ${RAR[inv.filter].name}`;
+      sellBtn.innerHTML = `Продать ${esc(what)} · ${list.length} шт. за ${fmt(sum(list, sellPrice))} ${COIN}`;
+    }
   }
 
   const SRC_NAMES = { case: 'кейса', upgrade: 'апгрейда', contract: 'контракта', battle: 'батла' };
@@ -1680,8 +1709,41 @@
         <div class="drop-view__actions">
           <button class="btn" type="button" data-to-upgrade="${it.u}">В апгрейд</button>
           ${canContract ? `<button class="btn btn--ghost" type="button" data-to-contract="${it.u}">В контракт</button>` : ''}
+          <button class="btn btn--ghost" type="button" data-sell="${it.u}">Продать за ${fmt(sellPrice(it))} ${COIN}</button>
         </div>
       </div>`, { label: s.name });
+  }
+
+  /* Продажа предметов за токены */
+  function sellItems(uids) {
+    const items = uids.map(findItem).filter((it) => it && skinById.has(it.s) && !pending.has(it.u));
+    if (!items.length) return;
+    const total = sum(items, sellPrice);
+    removeItems(items.map((it) => it.u));
+    state.balance += total;
+    state.stats.sold += items.length;
+    state.stats.soldFor += total;
+    save();
+    renderHeader();
+    toast(`Продано: ${items.length} ${itemsWord(items.length)} за ${fmt(total)} ${tokensWord(total)}`, 'ok');
+    refreshView();
+  }
+  function confirmSellShown() {
+    const list = ownedItems().filter((it) => !pending.has(it.u) && (inv.filter === 'all' || skinById.get(it.s).rarity === inv.filter));
+    if (!list.length) return;
+    const total = sum(list, sellPrice);
+    const rare = list.filter((it) => ['covert', 'gold'].includes(skinById.get(it.s).rarity)).length;
+    openModal(`
+      <h2 class="h2">Продать ${list.length} ${itemsWord(list.length)}?</h2>
+      <p class="hint" style="margin-top:0">Вы получите ${fmt(total)} ${tokensWord(total)}. Предметы пропадут из инвентаря, отменить продажу нельзя.${rare ? ` Среди них ${rare} Covert или ★.` : ''}</p>
+      <div class="confirm-actions">
+        <button class="btn btn--ghost" type="button" data-close data-autofocus>Отмена</button>
+        <button class="btn" type="button" id="sell-yes">Продать за ${fmt(total)} ${COIN}</button>
+      </div>`, { label: 'Продажа предметов' });
+    $('#sell-yes').addEventListener('click', () => {
+      closeModal({ silent: true });
+      sellItems(list.map((it) => it.u));
+    });
   }
 
   function confirmReset() {
@@ -1850,6 +1912,13 @@
     }
     if (t.closest('#drawer-nav a')) {
       closeDrawer();
+      return;
+    }
+    const sell = t.closest('[data-sell]');
+    if (sell) {
+      const uids = String(sell.dataset.sell).split(',').map(Number);
+      closeModal({ silent: true });
+      sellItems(uids);
       return;
     }
     const up = t.closest('[data-to-upgrade]');

@@ -222,6 +222,8 @@ button, input, select { font: inherit; color: inherit; }
 .btn--big { min-height: 54px; font-size: 1.15rem; padding: 12px 26px; }
 .btn--ghost { background: transparent; color: var(--fg); border-color: var(--line); }
 .btn--ghost:hover { background: var(--panel-2); }
+.btn--ghost .coin circle { fill: var(--accent); }
+.btn--ghost .coin path { stroke: var(--accent-ink); }
 .btn--danger { background: transparent; color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
 .btn--danger:hover { background: color-mix(in srgb, var(--bad) 14%, transparent); }
 .btn--danger-solid { background: var(--bad); color: #170607; }
@@ -312,6 +314,24 @@ button, input, select { font: inherit; color: inherit; }
   filter: drop-shadow(0 8px 10px rgb(0 0 0 / .55));
 }
 .case-art__custom { width: 100%; height: 100%; object-fit: contain; }
+
+/* Кейсы со своими картинками: квадрат в рамке цвета кейса */
+.case-art--image { aspect-ratio: 1 / 1; }
+.case-art--image .case-art__custom {
+  display: block; object-fit: cover; border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--case-color, var(--accent)) 60%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--case-color, var(--accent)) 26%, transparent);
+  transition: transform .3s ease;
+}
+.case-card:hover .case-art__custom { transform: translateY(-4px); }
+.case-grid--featured .case-card { flex-basis: calc(50% - 6px); }
+@media (min-width: 640px) { .case-grid--featured .case-card { flex-basis: calc(33.333% - 8px); max-width: 340px; } }
+.case-grid--featured .price-tag { min-width: 128px; }
+/* одинаковая высота подписи, чтобы картинки стояли на одной линии даже при переносе названия */
+.case-grid--featured .case-card__head { min-height: calc(1.08rem * 1.2 * 2 + .82rem * 1.5); justify-content: flex-end; }
+.bcase .case-art--image { aspect-ratio: 4 / 3; }
+.bcase .case-art--image .case-art__custom { object-fit: contain; border: 0; box-shadow: none; }
+.case-hero__art .case-art--image .case-art__custom { box-shadow: none; }
 
 /* ── Карточки предметов ───────────────────────────────────────────── */
 .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
@@ -667,6 +687,8 @@ button.item:hover { background-color: var(--panel-2); }
 .best__name { font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
 .best__rar { color: var(--rc); font-family: var(--font-display); letter-spacing: .08em; text-transform: uppercase; font-size: .85rem; }
 .inv-more { display: flex; justify-content: center; margin-top: 16px; }
+.inv-sell { display: flex; justify-content: flex-end; margin: -4px 0 12px; }
+.inv-sell .btn { min-height: 38px; padding: 6px 14px; font-size: .9rem; }
 .danger { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); }
 .danger .h3 { margin-top: 0; }
 .danger .btn { margin-top: 12px; }

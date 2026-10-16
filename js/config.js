@@ -26,14 +26,24 @@ const CONFIG = {
      section  — в каком разделе главной показывать (см. sections ниже)
      color    — цвет временной картинки кейса
      cover    — id скина, который лежит на кейсе (пока нет своей картинки)
-     image    — путь к своей картинке кейса, например 'img/cases/ak47.png'.
-                Пока пусто, рисуется временный кейс с обложкой-скином.
+     image    — путь к своей картинке кейса, например 'img/cases/ak47.webp'
+                (квадратная картинка). Пока пусто, рисуется временный кейс
+                с обложкой-скином.
      odds     — (необязательно) свои шансы для этого кейса, формат как у odds ниже */
+  // featured: true — раздел с крупными карточками (для кейсов со своими картинками)
   sections: [
+    { id: 'legendary', title: 'Легендарные кейсы', featured: true },
     { id: 'popular', title: 'Популярные кейсы' },
     { id: 'weapons', title: 'Оружейные кейсы' },
   ],
   cases: [
+    // Легендарные кейсы: только Restricted и выше, поэтому у них свои шансы.
+    { id: 'burger', name: 'Radioactive Burger', price: 200, section: 'legendary', color: '#9be22d', cover: 'awp-containment-breach', image: 'img/cases/radioactive-burger.webp',
+      odds: { restricted: 79.9, classified: 16, covert: 3.2, gold: 0.9 } },
+    { id: 'cyber', name: 'Cyber Psycho', price: 200, section: 'legendary', color: '#c04dff', cover: 'ak-47-neon-rider', image: 'img/cases/cyber-psycho.webp',
+      odds: { restricted: 79.9, classified: 16, covert: 3.2, gold: 0.9 } },
+    { id: 'aram', name: 'Aramzamzam', price: 200, section: 'legendary', color: '#f2b632', cover: 'awp-dragon-lore', image: 'img/cases/aramzamzam.webp',
+      odds: { restricted: 79.9, classified: 16, covert: 3.2, gold: 0.9 } },
     { id: 'starter', name: 'Новичок',      price: 10, section: 'popular', color: '#5e98d9', cover: 'ak-47-fuel-injector', image: '' },
     { id: 'ak47',    name: 'AK-47',        price: 25, section: 'popular', color: '#d9534f', cover: 'ak-47-fire-serpent', image: '' },
     { id: 'awp',     name: 'AWP',          price: 25, section: 'popular', color: '#3fb37f', cover: 'awp-man-o-war', image: '' },
@@ -102,7 +112,7 @@ const CONFIG = {
   /* ── Редкости ───────────────────────────────────────────────────────
      name  — подпись на сайте, color — цвет редкости,
      value — «ценность» предмета из кейса за basePrice токенов. Ценность
-     нужна для апгрейда, батлов и сортировки. Продать предмет нельзя.   */
+     нужна для апгрейда, батлов, сортировки и продажи.                  */
   rarities: {
     consumer:   { name: 'Consumer',     color: '#b0c3d9', value: 1 },
     industrial: { name: 'Industrial',   color: '#5e98d9', value: 2 },
@@ -117,8 +127,10 @@ const CONFIG = {
 
   /* ── Экономика предметов ─────────────────────────────────────────── */
   economy: {
-    basePrice: 10,        // кейс за 10 токенов даёт ценность ровно как в rarities.value;
-                          // в кейсе за 25 токенов предметы ценнее в 2,5 раза
+    basePrice: 10,        // кейс за 10 токенов даёт ценность ровно как в rarities.value.
+                          // Ценность остальных подбирается так, чтобы средний дроп был
+                          // пропорционален цене: кейс за 25 — в 2,5 раза ценнее и т. д.
+    sellRate: 0.9,        // продажа предмета: столько токенов за 1 ◆ ценности (1 — по полной цене)
     statTrakChance: 0.10, // шанс StatTrak™ при открытии (в CS2 тоже 10 %)
     statTrakValue: 1.5,   // во сколько раз StatTrak™ ценнее обычного
   },
@@ -374,5 +386,66 @@ const CONFIG = {
   { id: 'mac-10-oceanic', name: 'MAC-10 | Oceanic', rarity: 'milspec', case: 'starter', image: 'img/skins/mac-10-oceanic.webp', float: [0.00, 0.60] },
   { id: 'scar-20-crimson-web', name: 'SCAR-20 | Crimson Web', rarity: 'milspec', case: 'starter', image: 'img/skins/scar-20-crimson-web.webp', float: [0.06, 0.80] },
   { id: 'scar-20-outbreak', name: 'SCAR-20 | Outbreak', rarity: 'milspec', case: 'starter', image: 'img/skins/scar-20-outbreak.webp', float: [0.00, 0.50] },
+  // ── Кейс «Radioactive Burger», «Cyber Psycho», «Aramzamzam» ниже ──
+  // ── Кейс «Radioactive Burger» ─────────────────────────────
+  { id: 'karambit-gamma-doppler', name: '★ Karambit | Gamma Doppler', rarity: 'gold', case: 'burger', image: 'img/skins/karambit-gamma-doppler.webp', float: [0.00, 0.08] },
+  { id: 'butterfly-knife-gamma-doppler', name: '★ Butterfly Knife | Gamma Doppler', rarity: 'gold', case: 'burger', image: 'img/skins/butterfly-knife-gamma-doppler.webp', float: [0.00, 0.08] },
+  { id: 'm9-bayonet-gamma-doppler', name: '★ M9 Bayonet | Gamma Doppler', rarity: 'gold', case: 'burger', image: 'img/skins/m9-bayonet-gamma-doppler.webp', float: [0.00, 0.08] },
+  { id: 'sport-gloves-hedge-maze', name: '★ Sport Gloves | Hedge Maze', rarity: 'gold', case: 'burger', image: 'img/skins/sport-gloves-hedge-maze.webp', float: [0.06, 0.80], st: false },
+  { id: 'specialist-gloves-emerald-web', name: '★ Specialist Gloves | Emerald Web', rarity: 'gold', case: 'burger', image: 'img/skins/specialist-gloves-emerald-web.webp', float: [0.06, 0.80], st: false },
+  { id: 'hydra-gloves-emerald', name: '★ Hydra Gloves | Emerald', rarity: 'gold', case: 'burger', image: 'img/skins/hydra-gloves-emerald.webp', float: [0.06, 0.80], st: false },
+  { id: 'awp-containment-breach', name: 'AWP | Containment Breach', rarity: 'covert', case: 'burger', image: 'img/skins/awp-containment-breach.webp', float: [0.00, 1.00] },
+  { id: 'ak-47-wild-lotus', name: 'AK-47 | Wild Lotus', rarity: 'covert', case: 'burger', image: 'img/skins/ak-47-wild-lotus.webp', float: [0.00, 1.00], st: false },
+  { id: 'glock-18-gamma-doppler', name: 'Glock-18 | Gamma Doppler', rarity: 'covert', case: 'burger', image: 'img/skins/glock-18-gamma-doppler.webp', float: [0.00, 0.50], st: false },
+  { id: 'm4a1-s-welcome-to-the-jungle', name: 'M4A1-S | Welcome to the Jungle', rarity: 'covert', case: 'burger', image: 'img/skins/m4a1-s-welcome-to-the-jungle.webp', float: [0.00, 1.00], st: false },
+  { id: 'm4a1-s-hyper-beast', name: 'M4A1-S | Hyper Beast', rarity: 'covert', case: 'burger', image: 'img/skins/m4a1-s-hyper-beast.webp', float: [0.00, 1.00] },
+  { id: 'ak-47-hydroponic', name: 'AK-47 | Hydroponic', rarity: 'classified', case: 'burger', image: 'img/skins/ak-47-hydroponic.webp', float: [0.00, 0.80], st: false },
+  { id: 'p90-emerald-dragon', name: 'P90 | Emerald Dragon', rarity: 'classified', case: 'burger', image: 'img/skins/p90-emerald-dragon.webp', float: [0.06, 0.52] },
+  { id: 'sg-553-hazard-pay', name: 'SG 553 | Hazard Pay', rarity: 'classified', case: 'burger', image: 'img/skins/sg-553-hazard-pay.webp', float: [0.00, 0.48], st: false },
+  { id: 'five-seven-fall-hazard', name: 'Five-SeveN | Fall Hazard', rarity: 'classified', case: 'burger', image: 'img/skins/five-seven-fall-hazard.webp', float: [0.01, 0.52], st: false },
+  { id: 'p250-nuclear-threat', name: 'P250 | Nuclear Threat', rarity: 'restricted', case: 'burger', image: 'img/skins/p250-nuclear-threat.webp', float: [0.06, 0.80], st: false },
+  { id: 'glock-18-nuclear-garden', name: 'Glock-18 | Nuclear Garden', rarity: 'restricted', case: 'burger', image: 'img/skins/glock-18-nuclear-garden.webp', float: [0.00, 0.70], st: false },
+  { id: 'desert-eagle-emerald-jormungandr', name: 'Desert Eagle | Emerald Jörmungandr', rarity: 'restricted', case: 'burger', image: 'img/skins/desert-eagle-emerald-jormungandr.webp', float: [0.00, 0.50], st: false },
+  { id: 'tec-9-nuclear-threat', name: 'Tec-9 | Nuclear Threat', rarity: 'restricted', case: 'burger', image: 'img/skins/tec-9-nuclear-threat.webp', float: [0.06, 0.80], st: false },
+  // ── Кейс «Cyber Psycho» ─────────────────────────────
+  { id: 'sport-gloves-superconductor', name: '★ Sport Gloves | Superconductor', rarity: 'gold', case: 'cyber', image: 'img/skins/sport-gloves-superconductor.webp', float: [0.06, 0.80], st: false },
+  { id: 'sport-gloves-pandora-s-box', name: '★ Sport Gloves | Pandora\'s Box', rarity: 'gold', case: 'cyber', image: 'img/skins/sport-gloves-pandora-s-box.webp', float: [0.06, 0.80], st: false },
+  { id: 'hand-wraps-overprint', name: '★ Hand Wraps | Overprint', rarity: 'gold', case: 'cyber', image: 'img/skins/hand-wraps-overprint.webp', float: [0.06, 0.80], st: false },
+  { id: 'karambit-ultraviolet', name: '★ Karambit | Ultraviolet', rarity: 'gold', case: 'cyber', image: 'img/skins/karambit-ultraviolet.webp', float: [0.06, 0.80] },
+  { id: 'butterfly-knife-ultraviolet', name: '★ Butterfly Knife | Ultraviolet', rarity: 'gold', case: 'cyber', image: 'img/skins/butterfly-knife-ultraviolet.webp', float: [0.06, 0.80] },
+  { id: 'talon-knife-ultraviolet', name: '★ Talon Knife | Ultraviolet', rarity: 'gold', case: 'cyber', image: 'img/skins/talon-knife-ultraviolet.webp', float: [0.06, 0.80] },
+  { id: 'ak-47-neon-rider', name: 'AK-47 | Neon Rider', rarity: 'covert', case: 'cyber', image: 'img/skins/ak-47-neon-rider.webp', float: [0.00, 0.80] },
+  { id: 'ak-47-neon-revolution', name: 'AK-47 | Neon Revolution', rarity: 'covert', case: 'cyber', image: 'img/skins/ak-47-neon-revolution.webp', float: [0.00, 0.80] },
+  { id: 'awp-neo-noir', name: 'AWP | Neo-Noir', rarity: 'covert', case: 'cyber', image: 'img/skins/awp-neo-noir.webp', float: [0.00, 0.50] },
+  { id: 'm4a1-s-printstream', name: 'M4A1-S | Printstream', rarity: 'covert', case: 'cyber', image: 'img/skins/m4a1-s-printstream.webp', float: [0.00, 0.80] },
+  { id: 'desert-eagle-printstream', name: 'Desert Eagle | Printstream', rarity: 'covert', case: 'cyber', image: 'img/skins/desert-eagle-printstream.webp', float: [0.00, 0.80] },
+  { id: 'm4a4-cyber-security', name: 'M4A4 | Cyber Security', rarity: 'classified', case: 'cyber', image: 'img/skins/m4a4-cyber-security.webp', float: [0.00, 0.98] },
+  { id: 'm4a1-s-fatal-glitch', name: 'M4A1-S | Fatal Glitch', rarity: 'classified', case: 'cyber', image: 'img/skins/m4a1-s-fatal-glitch.webp', float: [0.00, 1.00], st: false },
+  { id: 'awp-electric-hive', name: 'AWP | Electric Hive', rarity: 'classified', case: 'cyber', image: 'img/skins/awp-electric-hive.webp', float: [0.00, 0.40] },
+  { id: 'usp-s-spiral-glitch', name: 'USP-S | Spiral Glitch', rarity: 'classified', case: 'cyber', image: 'img/skins/usp-s-spiral-glitch.webp', float: [0.00, 1.00], st: false },
+  { id: 'p250-cyber-shell', name: 'P250 | Cyber Shell', rarity: 'restricted', case: 'cyber', image: 'img/skins/p250-cyber-shell.webp', float: [0.00, 0.85] },
+  { id: 'mp7-neon-ply', name: 'MP7 | Neon Ply', rarity: 'restricted', case: 'cyber', image: 'img/skins/mp7-neon-ply.webp', float: [0.00, 1.00] },
+  { id: 'm4a1-s-glitched-paint', name: 'M4A1-S | Glitched Paint', rarity: 'restricted', case: 'cyber', image: 'img/skins/m4a1-s-glitched-paint.webp', float: [0.00, 0.67], st: false },
+  { id: 'usp-s-cyrex', name: 'USP-S | Cyrex', rarity: 'restricted', case: 'cyber', image: 'img/skins/usp-s-cyrex.webp', float: [0.00, 0.55] },
+  // ── Кейс «Aramzamzam» ─────────────────────────────
+  { id: 'karambit-lore', name: '★ Karambit | Lore', rarity: 'gold', case: 'aram', image: 'img/skins/karambit-lore.webp', float: [0.00, 0.65] },
+  { id: 'butterfly-knife-lore', name: '★ Butterfly Knife | Lore', rarity: 'gold', case: 'aram', image: 'img/skins/butterfly-knife-lore.webp', float: [0.00, 1.00] },
+  { id: 'm9-bayonet-lore', name: '★ M9 Bayonet | Lore', rarity: 'gold', case: 'aram', image: 'img/skins/m9-bayonet-lore.webp', float: [0.00, 0.65] },
+  { id: 'kukri-knife-case-hardened', name: '★ Kukri Knife | Case Hardened', rarity: 'gold', case: 'aram', image: 'img/skins/kukri-knife-case-hardened.webp', float: [0.00, 1.00] },
+  { id: 'hand-wraps-desert-shamagh', name: '★ Hand Wraps | Desert Shamagh', rarity: 'gold', case: 'aram', image: 'img/skins/hand-wraps-desert-shamagh.webp', float: [0.06, 0.80], st: false },
+  { id: 'sport-gloves-blaze', name: '★ Sport Gloves | Blaze', rarity: 'gold', case: 'aram', image: 'img/skins/sport-gloves-blaze.webp', float: [0.06, 0.80], st: false },
+  { id: 'awp-dragon-lore', name: 'AWP | Dragon Lore', rarity: 'covert', case: 'aram', image: 'img/skins/awp-dragon-lore.webp', float: [0.00, 0.70], st: false },
+  { id: 'm4a4-howl', name: 'M4A4 | Howl', rarity: 'covert', case: 'aram', image: 'img/skins/m4a4-howl.webp', float: [0.00, 0.40] },
+  { id: 'ak-47-gold-arabesque', name: 'AK-47 | Gold Arabesque', rarity: 'covert', case: 'aram', image: 'img/skins/ak-47-gold-arabesque.webp', float: [0.00, 0.70], st: false },
+  { id: 'awp-gungnir', name: 'AWP | Gungnir', rarity: 'covert', case: 'aram', image: 'img/skins/awp-gungnir.webp', float: [0.00, 0.60], st: false },
+  { id: 'awp-medusa', name: 'AWP | Medusa', rarity: 'covert', case: 'aram', image: 'img/skins/awp-medusa.webp', float: [0.00, 1.00], st: false },
+  { id: 'm4a1-s-golden-coil', name: 'M4A1-S | Golden Coil', rarity: 'covert', case: 'aram', image: 'img/skins/m4a1-s-golden-coil.webp', float: [0.00, 1.00] },
+  { id: 'm4a1-s-knight', name: 'M4A1-S | Knight', rarity: 'classified', case: 'aram', image: 'img/skins/m4a1-s-knight.webp', float: [0.00, 0.10], st: false },
+  { id: 'ak-47-case-hardened', name: 'AK-47 | Case Hardened', rarity: 'classified', case: 'aram', image: 'img/skins/ak-47-case-hardened.webp', float: [0.00, 1.00] },
+  { id: 'sawed-off-wasteland-princess', name: 'Sawed-Off | Wasteland Princess', rarity: 'classified', case: 'aram', image: 'img/skins/sawed-off-wasteland-princess.webp', float: [0.00, 0.70] },
+  { id: 'desert-eagle-blaze', name: 'Desert Eagle | Blaze', rarity: 'restricted', case: 'aram', image: 'img/skins/desert-eagle-blaze.webp', float: [0.00, 0.08], st: false },
+  { id: 'mac-10-gold-brick', name: 'MAC-10 | Gold Brick', rarity: 'restricted', case: 'aram', image: 'img/skins/mac-10-gold-brick.webp', float: [0.00, 0.70], st: false },
+  { id: 'xm1014-ancient-lore', name: 'XM1014 | Ancient Lore', rarity: 'restricted', case: 'aram', image: 'img/skins/xm1014-ancient-lore.webp', float: [0.00, 0.50], st: false },
+  { id: 'glock-18-royal-legion', name: 'Glock-18 | Royal Legion', rarity: 'restricted', case: 'aram', image: 'img/skins/glock-18-royal-legion.webp', float: [0.00, 1.00] },
   ],
 };
